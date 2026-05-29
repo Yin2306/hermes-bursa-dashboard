@@ -1,0 +1,787 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hermes - Bursa Trading Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg-primary:#0a0e14;
+  --bg-secondary:#111720;
+  --bg-tertiary:#171f2d;
+  --border:#202a3d;
+  --border-light:#273249;
+  --text-primary:#e8edf5;
+  --text-secondary:#a7b0c2;
+  --text-muted:#8792a6;
+  --accent:#5ba2ff;
+  --green:#00d4aa;
+  --green-bg:#0a2e1f;
+  --red:#ff4757;
+  --red-bg:#2e0a0a;
+  --amber:#ffb347;
+  --amber-bg:#2e2a0a;
+  --purple:#a855f7;
+  --purple-bg:#1e0a2e;
+}
+body{background:var(--bg-primary);color:var(--text-primary);font:13px/1.5 'Inter',system-ui,sans-serif;overflow-x:hidden}
+button,input,select,textarea{font:inherit}button{cursor:pointer;border:0;background:transparent;color:inherit}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+
+.app{display:grid;grid-template-columns:64px 1fr;grid-template-rows:56px 1fr;min-height:100vh}
+
+/* Topbar */
+.topbar{grid-column:1/-1;background:var(--bg-secondary);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 20px;z-index:100}
+.brand{display:flex;align-items:center;gap:12px;font-weight:800;font-size:15px}
+.logo{width:32px;height:32px;background:linear-gradient(135deg,var(--accent),var(--green));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
+.live{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);animation:pulse 2s infinite}
+.live.disconnected{background:var(--red);box-shadow:0 0 12px var(--red);animation:none}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
+.chips{display:flex;gap:10px;flex-wrap:wrap}
+.chip{background:var(--bg-tertiary);border:1px solid var(--border-light);border-radius:6px;padding:6px 12px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:12px;display:flex;align-items:center;gap:6px}
+.chip b{color:var(--text-primary)}
+.chip .label{color:var(--text-muted);font-size:10px;text-transform:uppercase}
+
+/* Sidebar */
+.sidebar{background:var(--bg-secondary);border-right:1px solid var(--border);padding:12px 8px;display:flex;flex-direction:column;gap:4px}
+.nav{width:48px;height:44px;border-radius:8px;color:var(--text-muted);font-size:18px;display:flex;align-items:center;justify-content:center;position:relative;transition:all .15s}
+.nav:hover{background:var(--bg-tertiary);color:var(--text-primary)}
+.nav.active{background:rgba(91,162,255,.1);color:var(--accent)}
+.nav.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:20px;background:var(--accent);border-radius:0 2px 2px 0}
+.nav-badge{position:absolute;top:4px;right:4px;width:6px;height:6px;border-radius:50%;background:var(--red)}
+
+/* Main */
+.main{overflow:auto;padding:20px 24px}
+.title{font-size:18px;font-weight:800;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.title .icon{font-size:22px}
+
+/* Cards */
+.card{background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:14px}
+.card h3{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);margin-bottom:12px;font-weight:600}
+.card-flat{background:var(--bg-tertiary);border:1px solid var(--border-light);border-radius:10px;padding:14px}
+
+/* Metrics */
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(2,1fr)}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g5{grid-template-columns:repeat(5,1fr)}
+.metric{background:var(--bg-tertiary);border:1px solid var(--border-light);border-radius:10px;padding:16px;position:relative;overflow:hidden}
+.metric::after{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0;transition:opacity .3s}
+.metric:hover::after{opacity:1}
+.num{font:700 28px/1.1 'JetBrains Mono',monospace}
+.num.sm{font-size:18px}
+.label-sm{font-size:11px;color:var(--text-muted);margin-top:4px;text-transform:uppercase;letter-spacing:.05em}
+.change{font-size:12px;font-weight:600;margin-top:2px;font-family:'JetBrains Mono',monospace}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:4px;border-radius:5px;padding:3px 10px;font-size:11px;font-weight:600;letter-spacing:.02em}
+.badge.green{background:var(--green-bg);color:var(--green)}
+.badge.red{background:var(--red-bg);color:var(--red)}
+.badge.amber{background:var(--amber-bg);color:var(--amber)}
+.badge.blue{background:rgba(10,30,46,1);color:var(--accent)}
+.badge.purple{background:var(--purple-bg);color:var(--purple)}
+.badge.neutral{background:rgba(26,31,46,1);color:var(--text-muted)}
+
+/* Tables */
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{text-align:left;padding:10px 12px;border-bottom:1px solid rgba(26,32,51,.6);font-size:12px}
+.table th{color:var(--text-muted);text-transform:uppercase;font-size:10px;letter-spacing:.08em;font-weight:600;position:sticky;top:0;background:var(--bg-secondary);z-index:1}
+.table tr:hover td{background:rgba(91,162,255,.03)}
+.table td:first-child{font-weight:600}
+
+/* News */
+.news-card{border-left:3px solid var(--border);padding-left:14px;margin-bottom:12px;transition:border-color .2s}
+.news-card.high{border-left-color:var(--red)}
+.news-card.medium{border-left-color:var(--amber)}
+.news-card.low{border-left-color:var(--text-muted)}
+.news-title{font-weight:700;margin:6px 0;font-size:14px}
+.tags{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px}
+
+/* Action Box */
+.action-box{background:rgba(13,21,32,.6);border:1px solid rgba(26,37,56,.6);border-radius:8px;padding:10px 14px;margin-top:10px}
+
+/* Levels */
+.levels{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+.level{background:rgba(13,21,32,.6);border-radius:6px;padding:10px 12px}
+.level span{font-size:10px;color:var(--text-muted);display:block;text-transform:uppercase;letter-spacing:.05em}
+.level b{font-size:14px;font-family:'JetBrains Mono',monospace}
+
+/* Bias */
+.bias{background:linear-gradient(135deg,rgba(17,23,32,.9),rgba(23,31,45,.9));border:1px solid var(--border-light);border-radius:12px;padding:20px;margin-bottom:18px}
+.bias h2{margin:8px 0;font-size:20px}
+
+/* Filterbar */
+.filterbar{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.filterbar input,.filterbar select{background:var(--bg-tertiary);border:1px solid var(--border-light);border-radius:8px;padding:8px 12px;color:var(--text-primary);font-size:12px;transition:border-color .2s}
+.filterbar input:focus,.filterbar select:focus{outline:none;border-color:var(--accent)}
+.filterbar input{flex:1;min-width:180px}
+
+/* Status */
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px}
+.status-dot.ok{background:var(--green)}.status-dot.err{background:var(--red)}
+
+/* New Pick Animation */
+.new-pick{background:rgba(10,46,26,.3)!important;border-color:var(--green)!important;animation:newPulse 2.5s ease-in-out}
+@keyframes newPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,212,170,0)}50%{box-shadow:0 0 20px 4px rgba(0,212,170,.15)}}
+.new-badge{background:var(--green);color:#000;font-weight:800;padding:3px 10px;border-radius:4px;font-size:11px;animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.5}}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--border-light)}
+
+/* Views */
+.view{display:none}.view.active{display:block;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+/* Win Rate Bar */
+.winrate-bar{height:8px;background:var(--bg-tertiary);border-radius:4px;overflow:hidden;margin-top:8px}
+.winrate-fill{height:100%;border-radius:4px;transition:width .5s ease}
+
+/* Responsive */
+@media(max-width:1024px){.g4,.g5{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:768px){
+  .app{grid-template-columns:1fr;grid-template-rows:56px auto 1fr}
+  .sidebar{flex-direction:row;overflow-x:auto;padding:8px;gap:4px;border-right:0;border-bottom:1px solid var(--border)}
+  .nav{width:42px;height:38px;font-size:16px}
+  .nav.active::before{display:none}
+  .chips{display:none}
+  .g3,.g4,.g5{grid-template-columns:repeat(2,1fr)}
+  .main{padding:14px}
+  .levels{grid-template-columns:1fr}
+  .num{font-size:22px}
+}
+@media(max-width:480px){
+  .g2,.g3,.g4,.g5{grid-template-columns:1fr}
+  .filterbar{flex-direction:column}
+  .filterbar input{min-width:100%}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">⚡</div>
+      <span>Hermes</span>
+      <span class="muted" style="font-size:11px;font-weight:400">Bursa Trading Intelligence</span>
+      <span class="live" id="statusDot"></span>
+    </div>
+    <div class="chips">
+      <div class="chip"><span class="label">Capital</span><b>RM 10,000</b></div>
+      <div class="chip"><span class="label">Cash</span><b id="cashTop">RM 10,000</b></div>
+      <div class="chip"><span class="label">P&L</span><b id="pnlTop">RM 0.00</b></div>
+      <div class="chip" id="clock">--:--:-- MYT</div>
+    </div>
+  </header>
+  <nav class="sidebar" id="nav"></nav>
+  <main class="main" id="main"></main>
+</div>
+<script>
+'use strict';
+
+// === Config ===
+const SERENITY_PICKS = (typeof SERENITY_DATA !== 'undefined') ? SERENITY_DATA : {picks:{},tweets:[],last_updated:null};
+const SHEET_ID = '1qJne2RkHcQKiS5ydL3ijclK9XvcQLcVBZ_cy4sGSjbY';
+const START_CAPITAL = 10000;
+
+// === Navigation ===
+const navItems = [
+  ['briefing','8:30 Briefing','☀️'],
+  ['portfolio','Portfolio','💼'],
+  ['trades','Trades','📋'],
+  ['watchlist','Watchlist','👁️'],
+  ['news','News','📰'],
+  ['director','Director Dealings','👔'],
+  ['market','Market','📊'],
+  ['analytics','Analytics','📈'],
+  ['serenity','Serenity','🔥'],
+];
+
+let state = { trades: [], news: [], briefing: [], macro: [], watchlist: [], director: [], connected: false };
+
+// === Google Sheets Fetch ===
+async function fetchSheet(tabName) {
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json&sheet=${tabName}&headers=1&t=${Date.now()}`;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const text = await resp.text();
+  const json = JSON.parse(text.substring(47, text.length - 2));
+  if (json.status === 'error') throw new Error(json.errors[0].message);
+  const cols = json.table.cols.map(c => c.label);
+  return json.table.rows.map(row => {
+    const obj = {};
+    cols.forEach((col, i) => { obj[col] = row.c[i] ? row.c[i].v : ''; });
+    return obj;
+  });
+}
+
+async function loadAll() {
+  try {
+    const [trades, news, briefing, macro, watchlist, director] = await Promise.all([
+      fetchSheet('Trades'),
+      fetchSheet('News'),
+      fetchSheet('Briefing'),
+      fetchSheet('Macro').catch(() => []),
+      fetchSheet('Watchlist').catch(() => []),
+      fetchSheet('Director').catch(() => [])
+    ]);
+    state.trades = trades.filter(t => t.Symbol && t.Symbol !== 'Symbol');
+    state.news = news.filter(n => n.Headline && n.Headline !== 'Headline');
+    state.briefing = briefing.filter(b => b.Date && b.Date !== 'Date');
+    state.macro = macro || [];
+    state.watchlist = watchlist || [];
+    state.director = director || [];
+    state.connected = true;
+    document.getElementById('statusDot').classList.remove('disconnected');
+  } catch (e) {
+    console.error('Fetch error:', e);
+    state.connected = false;
+    document.getElementById('statusDot').classList.add('disconnected');
+  }
+  renderAll();
+}
+
+// === Helpers ===
+function money(n) { return (n < 0 ? '-' : '') + 'RM ' + Math.abs(n || 0).toLocaleString('en-MY', {minimumFractionDigits: 2, maximumFractionDigits: 2}); }
+function pct(n) { return (parseFloat(n) >= 0 ? '+' : '') + (parseFloat(n) || 0).toFixed(2) + '%'; }
+function badge(text, type) { return `<span class="badge ${type}">${text}</span>`; }
+function actionType(a) {
+  if (!a) return 'neutral';
+  a = a.toLowerCase();
+  return a === 'buy' || a === 'strong buy' ? 'green' : a === 'avoid' || a === 'hold' ? 'amber' : a === 'sell' ? 'red' : a === 'watch' ? 'blue' : 'neutral';
+}
+function sentimentBadge(s) {
+  if (!s) return badge('-','neutral');
+  s = s.toLowerCase();
+  return s === 'bullish' ? badge('🟢 看涨','green') : s === 'bearish' ? badge('🔴 看跌','red') : badge('⚪ 中性','neutral');
+}
+function convictionBadge(c) {
+  if (!c) return badge('-','neutral');
+  c = c.toLowerCase();
+  if (c === 'high') return badge('🔥 高确信','red');
+  if (c === 'medium-high') return badge('⚡ 中高','amber');
+  return badge('📌 中等','blue');
+}
+
+// === Navigation ===
+function setView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+  document.querySelectorAll('.nav').forEach(b => b.classList.toggle('active', b.dataset.id === id));
+  localStorage.setItem('hermesActiveTab', id);
+  renderCurrentView(id);
+}
+
+function renderNav() {
+  document.getElementById('nav').innerHTML = navItems.map(n =>
+    `<button class="nav" data-id="${n[0]}" title="${n[1]}" onclick="setView('${n[0]}')">${n[2]}${n[0]==='director'||n[0]==='watchlist'?'<span class="nav-badge"></span>':''}</button>`
+  ).join('');
+}
+
+// === Render ===
+function renderCurrentView(id) {
+  const main = document.getElementById('main');
+  const renderers = {
+    briefing: renderBriefing,
+    portfolio: renderPortfolio,
+    trades: renderTrades,
+    watchlist: renderWatchlist,
+    news: renderNews,
+    director: renderDirector,
+    market: renderMarket,
+    analytics: renderAnalytics,
+    serenity: renderSerenity,
+  };
+  if (renderers[id]) renderers[id](main);
+}
+
+function renderAll() {
+  const closed = state.trades.filter(t => t.Exit && t.Exit !== '-' && t.Exit !== '');
+  const pnl = closed.reduce((a, t) => a + (parseFloat(t['P&L']) || 0), 0);
+  document.getElementById('pnlTop').textContent = money(pnl);
+  document.getElementById('pnlTop').style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+  document.getElementById('cashTop').textContent = money(START_CAPITAL + pnl);
+  const active = localStorage.getItem('hermesActiveTab') || 'briefing';
+  renderCurrentView(active);
+}
+
+// === Briefing ===
+function renderBriefing(el) {
+  const latest = state.briefing.length ? state.briefing[state.briefing.length - 1] : null;
+  const highNews = state.news.filter(n => (n.Importance || '').toLowerCase() === 'high');
+  const m = state.macro.length ? state.macro[state.macro.length - 1] : null;
+
+  el.innerHTML = `
+    <div class="title"><span class="icon">☀️</span> 8:30 AM Bursa Briefing <span class="muted" style="font-size:12px;margin-left:8px">${new Date().toLocaleDateString("zh-CN",{weekday:"long",year:"numeric",month:"long",day:"numeric"})}</span></div>
+    ${!state.connected ? '<div class="card" style="border-left:3px solid var(--red)"><span class="status-dot err"></span>数据未连接 — 请检查 Google Sheets 连接</div>' : ''}
+
+    <div class="grid g4" style="margin-bottom:16px">
+      ${macroCard('🛢️ 油价 (WTI)', m?.['Oil'], m?.['Oil_Change'])}
+      ${macroCard('🥇 黄金', m?.['Gold'], m?.['Gold_Change'])}
+      ${macroCard('₿ 比特币', m?.['BTC'], m?.['BTC_Change'])}
+      ${macroCard('💵 USD/MYR', m?.['USDMYR'], m?.['USDMYR_Change'], true)}
+    </div>
+
+    ${m?.['Geopolitical'] ? `<div class="card" style="border-left:3px solid var(--red)"><h3>🌍 地缘政治 / 宏观大事</h3><p>${m['Geopolitical']}</p></div>` : ''}
+
+    ${latest ? `
+    <div class="bias">
+      <h3>今日市场偏向</h3>
+      <h2 class="amber">${latest['Market Bias'] || '未更新'}</h2>
+      <p style="color:var(--text-secondary)">${latest['Key Themes'] || ''}</p>
+    </div>
+    <div class="grid g2">
+      <div class="card"><h3>🎯 重点观察</h3><p>${latest.Setups || '未更新'}</p></div>
+      <div class="card"><h3>⚠️ 风险提示</h3><p>${latest['Risk Notes'] || '未更新'}</p></div>
+    </div>
+    ` : '<div class="card muted">暂无简报数据</div>'}
+
+    ${highNews.length ? `
+    <div class="card">
+      <h3>⚡ 影响股市的重大新闻</h3>
+      ${highNews.map(n => newsCardHTML(n)).join('')}
+    </div>` : ''}
+  `;
+}
+
+function macroCard(label, value, change, invertColor) {
+  const chg = parseFloat(change);
+  const isUp = invertColor ? chg < 0 : chg >= 0;
+  return `<div class="metric">
+    <div class="num sm">${value || '-'}</div>
+    <div class="label-sm">${label}</div>
+    ${change ? `<div class="change ${isUp?'green':'red'}">${pct(change)}</div>` : ''}
+  </div>`;
+}
+
+function newsCardHTML(n) {
+  const imp = (n.Importance||'medium').toLowerCase();
+  return `<div class="news-card ${imp}">
+    <div class="tags">${badge(n.Importance,imp==='high'?'red':imp==='medium'?'amber':'neutral')}${badge(n.Category,'blue')}</div>
+    <div class="news-title">${n.Headline}</div>
+    <p style="color:var(--text-secondary);font-size:12px">${n.Summary||''}</p>
+    <div class="action-box">${badge(n.Action, actionType(n.Action))}</div>
+  </div>`;
+}
+
+// === Portfolio ===
+function renderPortfolio(el) {
+  const open = state.trades.filter(t => t.Action === 'Buy' && parseInt(t.Qty) > 0);
+  const totalValue = open.reduce((a, t) => a + (parseFloat(t.Entry||0) * parseInt(t.Qty||0)), 0);
+  const unrealizedPnl = open.reduce((a, t) => a + (parseFloat(t['P&L']) || 0), 0);
+
+  el.innerHTML = `
+    <div class="title"><span class="icon">💼</span> Portfolio</div>
+    <div class="grid g4" style="margin-bottom:16px">
+      <div class="metric"><div class="num sm">${open.length}</div><div class="label-sm">持仓数</div></div>
+      <div class="metric"><div class="num sm">${money(totalValue)}</div><div class="label-sm">持仓总值</div></div>
+      <div class="metric"><div class="num sm ${unrealizedPnl>=0?'green':'red'}">${money(unrealizedPnl)}</div><div class="label-sm">未实现盈亏</div></div>
+      <div class="metric"><div class="num sm">${money(START_CAPITAL + unrealizedPnl)}</div><div class="label-sm">账户总值</div></div>
+    </div>
+    ${open.length ? `
+    <div class="card">
+      <h3>当前持仓</h3>
+      <table class="table">
+        <thead><tr><th>代码</th><th>名称</th><th>入场价</th><th>止损</th><th>数量</th><th>成本</th><th>盈亏</th><th>备注</th></tr></thead>
+        <tbody>${open.map(t => {
+          const cost = (parseFloat(t.Entry||0) * parseInt(t.Qty||0));
+          const pnl = parseFloat(t['P&L'])||0;
+          return `<tr>
+            <td><b style="color:var(--accent)">${t.Symbol}</b></td>
+            <td>${t.Name||'-'}</td>
+            <td style="font-family:'JetBrains Mono',monospace">${t.Entry||'-'}</td>
+            <td style="font-family:'JetBrains Mono',monospace;color:var(--red)">${t.Exit||'-'}</td>
+            <td>${t.Qty||'0'}</td>
+            <td style="font-family:'JetBrains Mono',monospace">${money(cost)}</td>
+            <td class="${pnl>=0?'green':'red'}" style="font-family:'JetBrains Mono',monospace">${money(pnl)}</td>
+            <td class="muted">${t.Notes||''}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>` : '<div class="card muted">暂无持仓</div>'}
+  `;
+}
+
+// === Trades ===
+function renderTrades(el) {
+  const open = state.trades.filter(t => t.Action === 'Buy' && parseInt(t.Qty) > 0);
+  const closed = state.trades.filter(t => t.Exit && t.Exit !== '-' && t.Exit !== '');
+  const wins = closed.filter(t => (parseFloat(t['P&L'])||0) > 0).length;
+  const totalPnl = closed.reduce((a, t) => a + (parseFloat(t['P&L']) || 0), 0);
+
+  el.innerHTML = `
+    <div class="title"><span class="icon">📋</span> Trading Journal</div>
+    <div class="grid g5" style="margin-bottom:16px">
+      <div class="metric"><div class="num sm">${state.trades.length}</div><div class="label-sm">总交易</div></div>
+      <div class="metric"><div class="num sm blue">${open.length}</div><div class="label-sm">持仓中</div></div>
+      <div class="metric"><div class="num sm green">${wins}</div><div class="label-sm">盈利</div></div>
+      <div class="metric"><div class="num sm red">${closed.length - wins}</div><div class="label-sm">亏损</div></div>
+      <div class="metric"><div class="num sm ${totalPnl>=0?'green':'red'}">${money(totalPnl)}</div><div class="label-sm">总 P&L</div></div>
+    </div>
+    ${open.length ? `
+    <div class="card">
+      <h3>📋 持仓中</h3>
+      <table class="table">
+        <thead><tr><th>日期</th><th>代码</th><th>名称</th><th>动作</th><th>入场</th><th>止损</th><th>数量</th><th>备注</th></tr></thead>
+        <tbody>${open.map(t => `<tr>
+          <td>${t.Date||''}</td><td><b style="color:var(--accent)">${t.Symbol}</b></td><td>${t.Name||''}</td>
+          <td>${badge(t.Action, actionType(t.Action))}</td>
+          <td style="font-family:'JetBrains Mono',monospace">${t.Entry||'-'}</td>
+          <td style="font-family:'JetBrains Mono',monospace;color:var(--red)">${t.Exit||'-'}</td>
+          <td>${t.Qty||'0'}</td><td class="muted">${t.Notes||''}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>` : ''}
+    ${closed.length ? `
+    <div class="card">
+      <h3>✅ 已平仓</h3>
+      <table class="table">
+        <thead><tr><th>日期</th><th>代码</th><th>名称</th><th>入场</th><th>出场</th><th>数量</th><th>P&L</th><th>备注</th></tr></thead>
+        <tbody>${closed.map(t => {
+          const pnl = parseFloat(t['P&L']) || 0;
+          return `<tr>
+            <td>${t.Date||''}</td><td><b>${t.Symbol}</b></td><td>${t.Name||''}</td>
+            <td style="font-family:'JetBrains Mono',monospace">${t.Entry||'-'}</td>
+            <td style="font-family:'JetBrains Mono',monospace">${t.Exit||'-'}</td>
+            <td>${t.Qty||'0'}</td>
+            <td class="${pnl>=0?'green':'red'}" style="font-family:'JetBrains Mono',monospace;font-weight:700">${money(pnl)}</td>
+            <td class="muted">${t.Notes||''}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>` : ''}
+    ${!state.trades.length ? '<div class="card muted">暂无交易记录</div>' : ''}
+  `;
+}
+
+// === Watchlist ===
+function renderWatchlist(el) {
+  const items = state.watchlist || [];
+  el.innerHTML = `
+    <div class="title"><span class="icon">👁️</span> Watchlist</div>
+    ${items.length ? `
+    <div class="card">
+      <h3>关注列表</h3>
+      <table class="table">
+        <thead><tr><th>代码</th><th>名称</th><th>当前价</th><th>目标价</th><th>止损</th><th>信号</th><th>理由</th></tr></thead>
+        <tbody>${items.map(w => `<tr>
+          <td><b style="color:var(--accent)">${w.Symbol||w.Ticker||''}</b></td>
+          <td>${w.Name||'-'}</td>
+          <td style="font-family:'JetBrains Mono',monospace">${w.Price||'-'}</td>
+          <td style="font-family:'JetBrains Mono',monospace;color:var(--green)">${w.Target||'-'}</td>
+          <td style="font-family:'JetBrains Mono',monospace;color:var(--red)">${w.StopLoss||'-'}</td>
+          <td>${sentimentBadge(w.Signal||w.Sentiment)}</td>
+          <td class="muted" style="max-width:300px">${w.Reason||w.Thesis||'-'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>` : '<div class="card muted">暂无关注股票 — 通过 Telegram 添加到 Watchlist</div>'}
+  `;
+}
+
+// === Director Dealings ===
+function renderDirector(el) {
+  const items = state.director || [];
+  const buys = items.filter(d => (d.Action||'').toLowerCase().includes('buy') || (d.Action||'').toLowerCase().includes('acquire'));
+  const sells = items.filter(d => (d.Action||'').toLowerCase().includes('sell') || (d.Action||'').toLowerCase().includes('dispose'));
+
+  el.innerHTML = `
+    <div class="title"><span class="icon">👔</span> Director Dealings</div>
+    <div class="grid g3" style="margin-bottom:16px">
+      <div class="metric"><div class="num sm">${items.length}</div><div class="label-sm">总交易</div></div>
+      <div class="metric"><div class="num sm green">${buys.length}</div><div class="label-sm">增持</div></div>
+      <div class="metric"><div class="num sm red">${sells.length}</div><div class="label-sm">减持</div></div>
+    </div>
+    <div class="bias">
+      <h3>💡 为什么关注内部人交易？</h3>
+      <p style="color:var(--text-secondary)">董事用自己的钱买公司股票 = 相信股价会涨。这是合法的"内幕知识"。连续增持 = 极强信心信号。</p>
+    </div>
+    ${items.length ? `
+    <div class="card">
+      <h3>近期内部人交易</h3>
+      <table class="table">
+        <thead><tr><th>日期</th><th>代码</th><th>名称</th><th>动作</th><th>数量(万股)</th><th>均价</th><th>信号</th></tr></thead>
+        <tbody>${items.sort((a,b) => (b.Date||'').localeCompare(a.Date||'')).map(d => {
+          const isBuy = (d.Action||'').toLowerCase().includes('buy') || (d.Action||'').toLowerCase().includes('acquire');
+          return `<tr>
+            <td>${d.Date||''}</td>
+            <td><b style="color:var(--accent)">${d.Symbol||''}</b></td>
+            <td>${d.Name||'-'}</td>
+            <td>${badge(d.Action, isBuy?'green':'red')}</td>
+            <td style="font-family:'JetBrains Mono',monospace">${d.Shares||'-'}</td>
+            <td style="font-family:'JetBrains Mono',monospace">${d.Price?'RM '+d.Price:'-'}</td>
+            <td>${isBuy ? badge('🟢 强','green') : badge('🔴 注意','red')}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>` : '<div class="card muted">暂无内部人交易数据 — 数据将自动更新</div>'}
+  `;
+}
+
+// === News ===
+function renderNews(el) {
+  const sorted = [...state.news].sort((a, b) => {
+    const order = {high: 0, medium: 1, low: 2};
+    return (order[(a.Importance||'').toLowerCase()] || 2) - (order[(b.Importance||'').toLowerCase()] || 2);
+  });
+
+  el.innerHTML = `
+    <div class="title"><span class="icon">📰</span> Bursa News Intelligence</div>
+    <div class="filterbar">
+      <input id="newsSearch" placeholder="🔍 搜索新闻..." oninput="filterNews()">
+      <select id="impFilter" onchange="filterNews()">
+        <option value="All">全部重要性</option><option value="high">🔴 高</option><option value="medium">🟡 中</option><option value="low">⚪ 低</option>
+      </select>
+      <select id="catFilter" onchange="filterNews()">
+        <option value="All">全部分类</option>
+        ${[...new Set(state.news.map(n=>n.Category).filter(Boolean))].map(c => `<option value="${c}">${c}</option>`).join('')}
+      </select>
+    </div>
+    <div id="newsList">${renderNewsList(sorted)}</div>
+  `;
+}
+
+function filterNews() {
+  const q = (document.getElementById('newsSearch')?.value || '').toLowerCase();
+  const imp = document.getElementById('impFilter')?.value || 'All';
+  const cat = document.getElementById('catFilter')?.value || 'All';
+  let items = [...state.news];
+  if (imp !== 'All') items = items.filter(n => (n.Importance||'').toLowerCase() === imp.toLowerCase());
+  if (cat !== 'All') items = items.filter(n => n.Category === cat);
+  if (q) items = items.filter(n => [n.Headline, n.Summary, n.Category, n.Action].join(' ').toLowerCase().includes(q));
+  items.sort((a, b) => {
+    const order = {high: 0, medium: 1, low: 2};
+    return (order[(a.Importance||'').toLowerCase()] || 2) - (order[(b.Importance||'').toLowerCase()] || 2);
+  });
+  document.getElementById('newsList').innerHTML = renderNewsList(items);
+}
+
+function renderNewsList(items) {
+  return items.map(n => {
+    const imp = (n.Importance || 'medium').toLowerCase();
+    return `<div class="news-card ${imp}">
+      <div class="tags">${badge(n.Importance, imp === 'high' ? 'red' : imp === 'medium' ? 'amber' : 'neutral')}${badge(n.Category, 'blue')}</div>
+      <div class="news-title">${n.Headline}</div>
+      <p style="color:var(--text-secondary);font-size:12px">${n.Summary||''}</p>
+      <div class="action-box">${badge(n.Action, actionType(n.Action))}</div>
+    </div>`;
+  }).join('') || '<div class="card muted">暂无新闻</div>';
+}
+
+// === Market ===
+function renderMarket(el) {
+  const m = state.macro.length ? state.macro[state.macro.length - 1] : null;
+  el.innerHTML = `
+    <div class="title"><span class="icon">📊</span> Market Overview</div>
+    <div class="grid g4" style="margin-bottom:16px">
+      ${macroCard('🛢️ WTI Oil', m?.['Oil'], m?.['Oil_Change'])}
+      ${macroCard('🥇 Gold', m?.['Gold'], m?.['Gold_Change'])}
+      ${macroCard('₿ BTC', m?.['BTC'], m?.['BTC_Change'])}
+      ${macroCard('💵 USD/MYR', m?.['USDMYR'], m?.['USDMYR_Change'], true)}
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <h3>📡 数据来源</h3>
+        <p>市场数据由 Hermes 自动更新至 Google Sheets</p>
+        <p style="margin-top:10px"><a href="https://docs.google.com/spreadsheets/d/${SHEET_ID}" target="_blank">📄 打开 Google Sheets →</a></p>
+      </div>
+      <div class="card">
+        <h3>🔗 连接状态</h3>
+        <p><span class="status-dot ${state.connected ? 'ok' : 'err'}"></span>${state.connected ? '已连接 Google Sheets' : '未连接'}</p>
+        <p class="muted" style="margin-top:8px;font-size:11px">最后更新: ${new Date().toLocaleString('zh-CN')}</p>
+        <p class="muted" style="font-size:11px">自动刷新: 每5分钟</p>
+      </div>
+    </div>
+  `;
+}
+
+// === Analytics ===
+function renderAnalytics(el) {
+  const closed = state.trades.filter(t => t.Exit && t.Exit !== '-' && t.Exit !== '');
+  const wins = closed.filter(t => (parseFloat(t['P&L'])||0) > 0);
+  const losses = closed.filter(t => (parseFloat(t['P&L'])||0) < 0);
+  const pnl = closed.reduce((a, t) => a + (parseFloat(t['P&L']) || 0), 0);
+  const winRate = closed.length ? Math.round(wins.length / closed.length * 100) : 0;
+  const avgWin = wins.length ? wins.reduce((a,t) => a + parseFloat(t['P&L']||0), 0) / wins.length : 0;
+  const avgLoss = losses.length ? Math.abs(losses.reduce((a,t) => a + parseFloat(t['P&L']||0), 0) / losses.length) : 0;
+  const profitFactor = avgLoss > 0 ? (avgWin / avgLoss).toFixed(2) : '∞';
+  const maxWin = wins.length ? Math.max(...wins.map(t => parseFloat(t['P&L']||0))) : 0;
+  const maxLoss = losses.length ? Math.min(...losses.map(t => parseFloat(t['P&L']||0))) : 0;
+
+  el.innerHTML = `
+    <div class="title"><span class="icon">📈</span> Analytics & Performance</div>
+    <div class="grid g4" style="margin-bottom:16px">
+      <div class="metric"><div class="num sm ${pnl>=0?'green':'red'}">${money(pnl)}</div><div class="label-sm">总 P&L</div></div>
+      <div class="metric"><div class="num sm">${winRate}%</div><div class="label-sm">胜率</div>
+        <div class="winrate-bar"><div class="winrate-fill" style="width:${winRate}%;background:${winRate>=50?'var(--green)':'var(--red)'}"></div></div>
+      </div>
+      <div class="metric"><div class="num sm green">${wins.length}</div><div class="label-sm">盈利</div></div>
+      <div class="metric"><div class="num sm red">${losses.length}</div><div class="label-sm">亏损</div></div>
+    </div>
+    <div class="grid g4" style="margin-bottom:16px">
+      <div class="metric"><div class="num sm">${money(avgWin)}</div><div class="label-sm">平均盈利</div></div>
+      <div class="metric"><div class="num sm">${money(avgLoss)}</div><div class="label-sm">平均亏损</div></div>
+      <div class="metric"><div class="num sm">${profitFactor}</div><div class="label-sm">盈亏比</div></div>
+      <div class="metric"><div class="num sm">${closed.length}</div><div class="label-sm">已平仓</div></div>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <h3>🏆 最大单笔盈利</h3>
+        <p class="green" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700">${money(maxWin)}</p>
+      </div>
+      <div class="card">
+        <h3>💀 最大单笔亏损</h3>
+        <p class="red" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700">${money(maxLoss)}</p>
+      </div>
+    </div>
+    <div class="card">
+      <h3>📊 账户概览</h3>
+      <div class="grid g2" style="margin-top:10px">
+        <div>
+          <p class="muted">起始资金</p>
+          <p style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700">${money(START_CAPITAL)}</p>
+        </div>
+        <div>
+          <p class="muted">当前资金</p>
+          <p style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700">${money(START_CAPITAL + pnl)}</p>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// === Serenity ===
+function renderSerenity(el) {
+  const d = (typeof SERENITY_DATA !== 'undefined') ? SERENITY_DATA : {picks:{},tweets:[],last_updated:null};
+  const picks = d.picks || {};
+  const tweets = d.tweets || [];
+  const now = Date.now();
+  const ONE_DAY = 24 * 60 * 60 * 1000;
+
+  const convictionOrder = {high:0, 'medium-high':1, medium:2};
+  const sorted = Object.values(picks).sort((a,b) => {
+    const aNew = a.first_seen && (now - new Date(a.first_seen).getTime()) < ONE_DAY;
+    const bNew = b.first_seen && (now - new Date(b.first_seen).getTime()) < ONE_DAY;
+    if (aNew && !bNew) return -1;
+    if (!aNew && bNew) return 1;
+    const ca = convictionOrder[a.conviction] ?? 3;
+    const cb = convictionOrder[b.conviction] ?? 3;
+    if (ca !== cb) return ca - cb;
+    return (b.mentions||0) - (a.mentions||0);
+  });
+
+  const newPicks = sorted.filter(p => p.first_seen && (now - new Date(p.first_seen).getTime()) < ONE_DAY);
+  const hisPicks = sorted.filter(p => p.in_portfolio && !(p.first_seen && (now - new Date(p.first_seen).getTime()) < ONE_DAY));
+  const watchlist = sorted.filter(p => !p.in_portfolio && p.mentions >= 2 && !(p.first_seen && (now - new Date(p.first_seen).getTime()) < ONE_DAY));
+
+  el.innerHTML = `
+    <div class="title"><span class="icon">🔥</span> Serenity (@aleabitoreddit) 持仓追踪</div>
+    <div class="bias">
+      <h3>简介</h3>
+      <p style="color:var(--text-secondary)">AI/半导体供应链分析师 · 前RISC-V基金会 · WSB传奇交易员</p>
+      <p style="color:var(--text-secondary)">风格：从监管文件、PCN文件、CHIPS Act补贴名单中挖掘被市场忽视的瓶颈环节</p>
+      <p class="muted" style="margin-top:8px;font-size:11px">最后更新: ${d.last_updated ? new Date(d.last_updated).toLocaleString('zh-CN') : '未更新'}</p>
+    </div>
+
+    ${newPicks.length ? `
+    <div class="card new-pick">
+      <h3>🆕 <span class="new-badge">新推荐</span> 最近24小时新增</h3>
+      <table class="table">
+        <thead><tr><th>代码</th><th>情绪</th><th>确信度</th><th>提及</th><th>核心逻辑</th><th>发现时间</th></tr></thead>
+        <tbody>${newPicks.map(p => `<tr>
+          <td><b style="color:var(--green);font-size:15px">$${p.ticker}</b></td>
+          <td>${sentimentBadge(p.sentiment)}</td>
+          <td>${convictionBadge(p.conviction)}</td>
+          <td>${p.mentions}x</td>
+          <td style="max-width:350px">${p.thesis || '-'}</td>
+          <td class="muted" style="font-size:11px">${p.first_seen ? new Date(p.first_seen).toLocaleString('zh-CN') : '-'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>` : ''}
+
+    ${hisPicks.length ? `
+    <div class="card">
+      <h3>🔥 他已建仓的标的（最高确信度）</h3>
+      <table class="table">
+        <thead><tr><th>代码</th><th>情绪</th><th>确信度</th><th>提及</th><th>核心逻辑</th></tr></thead>
+        <tbody>${hisPicks.map(p => `<tr>
+          <td><b style="color:var(--accent);font-size:14px">$${p.ticker}</b></td>
+          <td>${sentimentBadge(p.sentiment)}</td>
+          <td>${convictionBadge(p.conviction)}</td>
+          <td>${p.mentions}x</td>
+          <td style="max-width:400px">${p.thesis || '-'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>` : ''}
+
+    ${watchlist.length ? `
+    <div class="card">
+      <h3>📌 关注列表（多次提及）</h3>
+      <table class="table">
+        <thead><tr><th>代码</th><th>情绪</th><th>确信度</th><th>提及</th><th>核心逻辑</th></tr></thead>
+        <tbody>${watchlist.map(p => `<tr>
+          <td><b>$${p.ticker}</b></td>
+          <td>${sentimentBadge(p.sentiment)}</td>
+          <td>${convictionBadge(p.conviction)}</td>
+          <td>${p.mentions}x</td>
+          <td style="max-width:400px">${p.thesis || '-'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>` : ''}
+
+    ${tweets.length ? `
+    <div class="card">
+      <h3>📝 最近推文原文</h3>
+      ${tweets.slice(0,8).map(t => `
+        <div class="news-card ${t.relevance >= 3 ? 'high' : t.relevance >= 2 ? 'medium' : 'low'}" style="margin-bottom:10px">
+          <div class="tags">${t.tickers.map(tk => badge('$'+tk, 'blue')).join('')}</div>
+          <p style="font-size:12px;margin:4px 0;color:var(--text-secondary)">${t.text}</p>
+          <div class="muted" style="font-size:11px">${new Date(t.timestamp).toLocaleString('zh-CN')}</div>
+        </div>
+      `).join('')}
+    </div>` : '<div class="card muted">暂无数据 — 系统每30分钟自动抓取更新</div>'}
+
+    <div class="card" style="border-left:3px solid var(--amber)">
+      <h3>⚠️ 风险提示</h3>
+      <p style="color:var(--text-secondary)">• 以上为 Serenity 个人观点追踪，非投资建议</p>
+      <p style="color:var(--text-secondary)">• 小市值标的流动性较差，请注意风险</p>
+      <p style="color:var(--text-secondary)">• 他强调 DYOR, NFA — 请自行验证后再决策</p>
+      <p style="color:var(--text-secondary)">• 数据每30分钟自动更新一次</p>
+    </div>
+  `;
+}
+
+// === Clock ===
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${h}:${m}:${s} MYT`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// === Init ===
+renderNav();
+loadAll();
+setView(localStorage.getItem('hermesActiveTab') || 'briefing');
+
+// Auto-refresh every 5 minutes
+setInterval(loadAll, 300000);
+// Refresh Serenity data every 10 minutes
+setInterval(() => {
+  const s = document.getElementById('serenityScript');
+  if (s) { s.src = 'serenity_data.js?t=' + Date.now(); }
+}, 600000);
+</script>
+<script src="serenity_data.js" id="serenityScript"></script>
+</body>
+</html>
